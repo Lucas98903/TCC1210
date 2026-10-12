@@ -157,14 +157,13 @@ VAR
     AtualizacoesPI      : INT;
 
 
-    (* ================= ENSAIO DE DEGRAUS =============== *)
+    (* ================= DEGRAUS NO SETPOINT ============= *)
 
-    EnsaioDegraus       : BOOL;     (* TRUE = START aplica degraus *)
-    Degrau_EscalaG2     : BOOL;     (* TRUE = potencia 12000 + 60*% *)
+    EnsaioDegraus       : BOOL;     (* TRUE = START aplica degraus no SP *)
 
     Degrau_Tempo        : REAL;     (* duracao de cada degrau [s] *)
     Degrau_N            : INT;      (* numero de degraus (max 10) *)
-    Degrau_Valor        : ARRAY[0..9] OF REAL;  (* degraus em % *)
+    Degrau_Valor        : ARRAY[0..9] OF REAL;  (* degraus de SP [cm] *)
 
     Degrau_Etapa        : INT;      (* degrau atual: 0..Degrau_N-1 *)
     Degrau_Cnt          : DINT;     (* ciclos no degrau atual *)
