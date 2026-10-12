@@ -1,0 +1,65 @@
+==========================================
+B&R Automation Studio - Git Ignore
+Projeto: TCCPlus19081
+==========================================
+------------------------------------------
+Arquivos temporários do projeto
+------------------------------------------
+
+.tmp .temp .bak .old .orig ~
+
+------------------------------------------
+Compilação e arquivos gerados
+------------------------------------------
+
+/TCCPlus19081/Temp/Objects/ /TCCPlus19081/Temp/Archives/
+
+Objetos e saídas de compilação
+
+.o .out .ox .deb .mak .dep
+
+Listas e metadados temporários de build
+
+CompleteProjectObjectsList.lst HeaderFileDependencies.lst Declarations.lst Symbols.map Symbols.opt
+
+------------------------------------------
+Simulação local
+------------------------------------------
+
+/TCCPlus19081/Temp/Simulation/
+
+------------------------------------------
+Logs
+------------------------------------------
+
+*.log AR000log.txt
+
+------------------------------------------
+Arquivos temporários de configuração
+------------------------------------------
+
+.tmp.xml .tmp.archive *.tmp.xml.gz
+
+------------------------------------------
+Arquivos de estado e sessão locais
+------------------------------------------
+
+/TCCPlus19081/*.isopen /TCCPlus19081/LastUser.set /TCCPlus19081/joaog.set
+
+------------------------------------------
+Configurações locais do ambiente
+------------------------------------------
+
+/TCCPlus19081/Temp/Settings/
+
+------------------------------------------
+Sistema operacional e IDEs
+------------------------------------------
+
+Thumbs.db Desktop.ini .DS_Store .vscode/ .idea/
+
+------------------------------------------
+Arquivos compactados temporários de build
+------------------------------------------
+
+/TCCPlus19081/Temp/Objects//*.gz

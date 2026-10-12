@@ -1,0 +1,183 @@
+(********************************************************************
+ * DECLARACAO LOCAL - NewProgram
+ *
+ * A lista abaixo inclui as variaveis usadas pelo novo codigo.
+ * Variaveis antigas da sequencia de degraus podem permanecer no
+ * projeto mesmo sem serem utilizadas.
+ ********************************************************************)
+
+VAR
+
+    (* ================= SINAIS DA PLANTA ================= *)
+
+    pressao             : INT;      (* leitura bruta ADC *)
+    P_centimetro        : REAL;     (* pressao convertida em cm *)
+    P_psi               : REAL;
+
+    pressao_soma        : REAL;
+    amostra_cont        : INT;
+    pressao_media       : REAL;
+
+    y                   : REAL;     (* nivel atual em cm *)
+    y_prev              : REAL;
+
+    (* ================= COMANDO ========================= *)
+
+    percentual          : REAL;     (* comando 0..100 % *)
+    potencia            : INT;      (* comando bruto inversor *)
+
+    u                   : REAL;     (* entrada do MQR = percentual *)
+    u_prev              : REAL;
+
+    (* ================= START / STOP ==================== *)
+
+    Start               : BOOL;     (* botao momentaneo NA *)
+    Stop                : BOOL;     (* botao NC: TRUE normal *)
+
+    StartPulso          : BOOL;
+    StopPulso           : BOOL;
+
+    LIGA                : BOOL;     (* latch interno *)
+
+    (* FALSE = PI simples / TRUE = PI adaptativo *)
+    PI_Adaptativo       : BOOL;
+
+
+    (* ================= MQR ============================= *)
+
+    Theta               : ARRAY[0..1] OF REAL;
+
+    P                   : ARRAY[0..1,0..1] OF REAL;
+
+    Lambda              : REAL;
+
+    Phi                 : ARRAY[0..1] OF REAL;
+
+    K                   : ARRAY[0..1] OF REAL;
+
+    Y_hat               : REAL;
+    Error               : REAL;
+    Den                 : REAL;
+
+    P00_old             : REAL;
+    P01_old             : REAL;
+    P10_old             : REAL;
+    P11_old             : REAL;
+
+    Ts                  : REAL;
+    PrimeiraAmostra     : BOOL;
+
+
+    (* ================= SUPERVISOR MQR ================== *)
+
+    SomaTheta0_1s       : REAL;
+    SomaTheta1_1s       : REAL;
+
+    ContAmostras1s      : INT;
+
+    MediaTheta0_1s      : REAL;
+    MediaTheta1_1s      : REAL;
+
+    Theta0Janela        : ARRAY[0..9] OF REAL;
+    Theta1Janela        : ARRAY[0..9] OF REAL;
+
+    ContJanela          : INT;
+
+    Soma0               : REAL;
+    Soma1               : REAL;
+
+    SomaT0              : REAL;
+    SomaT1              : REAL;
+
+    SlopeTheta0         : REAL;
+    SlopeTheta1         : REAL;
+
+    EpsTheta0           : REAL;
+    EpsTheta1           : REAL;
+
+    ThetaAceito         : ARRAY[0..1] OF REAL;
+
+    ContEstavel         : INT;
+    EstavelNecessario   : INT;
+
+    ModeloEstavel       : BOOL;
+    ModeloValido        : BOOL;
+    ModeloAceito        : BOOL;
+
+    i                   : INT;
+
+
+    (* ================= MODELO DA PLANTA ================ *)
+
+    GanhoPlanta         : REAL;
+    TauPlanta           : REAL;
+
+
+    (* ================= SINTONIA PI ===================== *)
+
+    ZetaDesejado        : REAL;
+    WnFactor            : REAL;
+    Wn                  : REAL;
+
+    Kp_Base             : REAL;
+    Ti_Base             : REAL;
+
+    Kp_PI               : REAL;
+    Ti_PI               : REAL;
+
+    Kp_Alvo             : REAL;
+    Ti_Alvo             : REAL;
+
+    KpMin               : REAL;
+    KpMax               : REAL;
+
+    TiMin               : REAL;
+    TiMax               : REAL;
+
+    KpRate              : REAL;
+    TiRate              : REAL;
+
+
+    (* ================= SETPOINT / PI =================== *)
+
+    SP                  : REAL;     (* setpoint em cm *)
+    SP_Rampa            : REAL;
+
+    TaxaSP              : REAL;
+    DeltaMax            : REAL;
+
+    Erro_PI             : REAL;
+
+    Integral_PI         : REAL;
+    Integral_Candidato  : REAL;
+
+    SaidaPI             : REAL;
+    SaidaPI_SemLimite   : REAL;
+
+    AtualizacoesPI      : INT;
+
+
+    (* ================= VARIAVEIS ANTIGAS OPCIONAIS ===== *)
+    (*
+       Estas podem continuar declaradas se ainda forem utilizadas
+       em traces ou testes antigos:
+
+       Ciclo
+       Pot_Nivel
+       Coleta_Concluida
+       Tempo_Cnt
+       Tempo_ms
+       Timeout_Cnt
+       PRESSAO_ALTA
+       PRESSAO_BAIXA
+       POT_FUNDO_ESCALA
+       N_CICLOS
+       TIMEOUT_MS
+       T_SCAN_MS
+       Degrau_Etapa
+       Degrau_Cnt
+       Degrau_Ativo
+       frequencia
+    *)
+
+END_VAR

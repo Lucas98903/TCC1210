@@ -1,0 +1,15 @@
+(********************************************************************
+ * COPYRIGHT --  
+ ********************************************************************
+ * File: IoMap.iom
+ * Author: joaog
+ * Created: August 13, 2026
+ ********************************************************************
+ * IO mapping file
+ ********************************************************************)
+VAR_CONFIG
+	::NewProgram:pressao AT %IW."X20CM8281".AnalogInput01;
+	NewProgram:potencia AT %QW."X20CM8281".AnalogOutput01;
+	::NewProgram:Start AT %IX."X20DM9324".DigitalInput01;
+	::NewProgram:Stop AT %IX."X20DM9324".DigitalInput02;
+END_VAR

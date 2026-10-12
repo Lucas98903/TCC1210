@@ -1,0 +1,33 @@
+(********************************************************************
+ * COPYRIGHT --  
+ ********************************************************************
+ * Program: NewProgram
+ * File: NewProgram.var
+ * Author: joao.paulo
+ * Created: August 13, 2026
+ ********************************************************************
+ * Local variables of program NewProgram
+ ********************************************************************)
+VAR
+	P : ARRAY[0..1,0..1] OF REAL;
+	Theta : ARRAY[0..1] OF REAL;
+	u_prev : REAL;
+	y_prev : REAL;
+	Lambda : REAL;
+	P12_old : REAL;
+	u : REAL;
+	Den : REAL;
+	P11_old : REAL;
+	K : ARRAY[0..1] OF REAL;
+	P22_old : REAL;
+	Y_hat : REAL;
+	y : REAL;
+	Phi : ARRAY[0..1] OF REAL;
+	P21_old : REAL;
+	Error : REAL;
+	P00_old : REAL;
+	P01_old : REAL;
+	P10_old : REAL;
+	Sys : LCRPT1e;
+	Start : BOOL;
+END_VAR
