@@ -157,6 +157,21 @@ VAR
     AtualizacoesPI      : INT;
 
 
+    (* ================= ENSAIO DE DEGRAUS =============== *)
+
+    EnsaioDegraus       : BOOL;     (* TRUE = START aplica degraus *)
+    Degrau_EscalaG2     : BOOL;     (* TRUE = potencia 12000 + 60*% *)
+
+    Degrau_Tempo        : REAL;     (* duracao de cada degrau [s] *)
+    Degrau_N            : INT;      (* numero de degraus (max 10) *)
+    Degrau_Valor        : ARRAY[0..9] OF REAL;  (* degraus em % *)
+
+    Degrau_Etapa        : INT;      (* degrau atual: 0..Degrau_N-1 *)
+    Degrau_Cnt          : DINT;     (* ciclos no degrau atual *)
+    Degrau_Ativo        : BOOL;
+    Degrau_Concluido    : BOOL;
+
+
     (* ================= VARIAVEIS ANTIGAS OPCIONAIS ===== *)
     (*
        Estas podem continuar declaradas se ainda forem utilizadas
@@ -174,9 +189,6 @@ VAR
        N_CICLOS
        TIMEOUT_MS
        T_SCAN_MS
-       Degrau_Etapa
-       Degrau_Cnt
-       Degrau_Ativo
        frequencia
     *)
 

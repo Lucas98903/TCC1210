@@ -194,6 +194,53 @@ PROGRAM _INIT
 	AtualizacoesPI := 0;
 
 
+	(* ============================================================= *)
+	(* 8. ENSAIO DE DEGRAUS EM MALHA ABERTA                         *)
+	(* ============================================================= *)
+	(*
+	EnsaioDegraus = TRUE:
+	a cada START aplica a sequencia de degraus abaixo em malha
+	aberta, sem PI. O MQR continua rodando com u = percentual.
+	Ao fim do ultimo degrau o sistema desliga (LIGA = FALSE)
+	e Degrau_Concluido = TRUE.
+
+	EnsaioDegraus = FALSE:
+	START vai direto para o PI.
+
+	Degrau_Valor em %, mesmas amplitudes do ensaio do G2
+	(Fig. 5 do artigo). Maximo de 10 degraus.
+
+	Degrau_EscalaG2 = TRUE:
+	durante o ensaio, potencia = 12000 + 60*percentual,
+	ou seja, os mesmos valores brutos do ensaio do G2
+	(22.08 % -> 13325 ... 66.67 % -> 16000).
+
+	Degrau_EscalaG2 = FALSE:
+	usa a mesma conversao do PI (secao 17).
+	*)
+
+	EnsaioDegraus := TRUE;
+
+	(* duracao de cada degrau em segundos *)
+	Degrau_Tempo := 60.0;
+
+	Degrau_N := 6;
+
+	Degrau_Valor[0] := 33.33;
+	Degrau_Valor[1] := 50.00;
+	Degrau_Valor[2] := 33.33;
+	Degrau_Valor[3] := 66.67;
+	Degrau_Valor[4] := 22.08;
+	Degrau_Valor[5] := 41.67;
+
+	Degrau_EscalaG2 := TRUE;
+
+	Degrau_Ativo := FALSE;
+	Degrau_Concluido := FALSE;
+	Degrau_Etapa := 0;
+	Degrau_Cnt := 0;
+
+
 
 END_PROGRAM
 
@@ -292,6 +339,8 @@ PROGRAM _CYCLIC
 		ModeloValido := FALSE;
 		ModeloAceito := FALSE;
 
+		Degrau_Ativo := FALSE;
+
 	END_IF;
 
 
@@ -338,6 +387,16 @@ PROGRAM _CYCLIC
 		ModeloAceito := FALSE;
 
 		AtualizacoesPI := 0;
+
+		(* Inicia a sequencia de degraus, se habilitada *)
+		IF Degrau_N > 10 THEN
+			Degrau_N := 10;
+		END_IF;
+
+		Degrau_Ativo := EnsaioDegraus AND (Degrau_N > 0);
+		Degrau_Concluido := FALSE;
+		Degrau_Etapa := 0;
+		Degrau_Cnt := 0;
 
 	END_IF;
 
@@ -854,125 +913,210 @@ PROGRAM _CYCLIC
 
 
 		(* ========================================================= *)
-		(* 13. RAMPA DO SETPOINT                                    *)
-		(* ========================================================= *)
-
-		DeltaMax :=
-		TaxaSP * Ts;
-
-
-		IF (SP - SP_Rampa)
-			> DeltaMax THEN
-
-			SP_Rampa :=
-			SP_Rampa + DeltaMax;
-
-		ELSIF (SP - SP_Rampa)
-			< -DeltaMax THEN
-
-			SP_Rampa :=
-			SP_Rampa - DeltaMax;
-
-		ELSE
-
-			SP_Rampa := SP;
-
-		END_IF;
-
-
-
-		(* ========================================================= *)
-		(* 14. CONTROLADOR PI                                       *)
-		(* ========================================================= *)
-
-		Erro_PI :=
-		SP_Rampa - y;
-
-
-		IF Ti_PI < TiMin THEN
-			Ti_PI := TiMin;
-		END_IF;
-
-
-		Integral_Candidato :=
-		Integral_PI
-		+ (Kp_PI / Ti_PI)
-		* Erro_PI
-		* Ts;
-
-
-		SaidaPI_SemLimite :=
-		Kp_PI * Erro_PI
-		+ Integral_Candidato;
-
-
-
-		(* ========================================================= *)
-		(* 15. SATURACAO + ANTI-WINDUP                              *)
-		(* ========================================================= *)
-
-		IF SaidaPI_SemLimite > 100.0 THEN
-
-			percentual := 100.0;
-
-            (* permite integrar apenas se o erro tirar
-               o controlador da saturacao superior *)
-			IF Erro_PI < 0.0 THEN
-
-				Integral_PI :=
-				Integral_Candidato;
-
-			END_IF;
-
-
-		ELSIF SaidaPI_SemLimite < 0.0 THEN
-
-			percentual := 0.0;
-
-            (* permite integrar apenas se o erro tirar
-               o controlador da saturacao inferior *)
-			IF Erro_PI > 0.0 THEN
-
-				Integral_PI :=
-				Integral_Candidato;
-
-			END_IF;
-
-
-		ELSE
-
-			percentual :=
-			SaidaPI_SemLimite;
-
-			Integral_PI :=
-			Integral_Candidato;
-
-		END_IF;
-
-
-		SaidaPI := percentual;
-
-
-
-		(* ========================================================= *)
-		(* 16. % -> COMANDO BRUTO DO INVERSOR                       *)
+		(* 13. ENSAIO DE DEGRAUS (MALHA ABERTA)                     *)
 		(* ========================================================= *)
 		(*
+		Cada degrau dura Degrau_Tempo segundos.
+		Enquanto o ensaio esta ativo, o PI (secoes 14 a 16)
+		nao atua e a integral fica zerada.
+		*)
+
+		IF Degrau_Ativo THEN
+
+			(* fim do degrau atual: avanca para o proximo *)
+			IF DINT_TO_REAL(Degrau_Cnt) * Ts
+				>= Degrau_Tempo - 0.5 * Ts THEN
+
+				Degrau_Etapa := Degrau_Etapa + 1;
+				Degrau_Cnt := 0;
+
+			END_IF;
+
+
+			IF Degrau_Etapa >= Degrau_N THEN
+
+				(* fim do ensaio: desliga o sistema *)
+				Degrau_Ativo := FALSE;
+				Degrau_Concluido := TRUE;
+
+				LIGA := FALSE;
+
+				percentual := 0.0;
+
+			ELSE
+
+				percentual := Degrau_Valor[Degrau_Etapa];
+
+				Degrau_Cnt := Degrau_Cnt + 1;
+
+			END_IF;
+
+
+			Erro_PI := 0.0;
+
+			Integral_PI := 0.0;
+			Integral_Candidato := 0.0;
+
+			SaidaPI_SemLimite := percentual;
+			SaidaPI := percentual;
+
+			SP_Rampa := y;
+
+
+		ELSE
+
+
+			(* ========================================================= *)
+			(* 14. RAMPA DO SETPOINT                                    *)
+			(* ========================================================= *)
+
+			DeltaMax :=
+			TaxaSP * Ts;
+
+
+			IF (SP - SP_Rampa)
+				> DeltaMax THEN
+
+				SP_Rampa :=
+				SP_Rampa + DeltaMax;
+
+			ELSIF (SP - SP_Rampa)
+				< -DeltaMax THEN
+
+				SP_Rampa :=
+				SP_Rampa - DeltaMax;
+
+			ELSE
+
+				SP_Rampa := SP;
+
+			END_IF;
+
+
+
+			(* ========================================================= *)
+			(* 15. CONTROLADOR PI                                       *)
+			(* ========================================================= *)
+
+			Erro_PI :=
+			SP_Rampa - y;
+
+
+			IF Ti_PI < TiMin THEN
+				Ti_PI := TiMin;
+			END_IF;
+
+
+			Integral_Candidato :=
+			Integral_PI
+			+ (Kp_PI / Ti_PI)
+			* Erro_PI
+			* Ts;
+
+
+			SaidaPI_SemLimite :=
+			Kp_PI * Erro_PI
+			+ Integral_Candidato;
+
+
+
+			(* ========================================================= *)
+			(* 16. SATURACAO + ANTI-WINDUP                              *)
+			(* ========================================================= *)
+
+			IF SaidaPI_SemLimite > 100.0 THEN
+
+				percentual := 100.0;
+
+	            (* permite integrar apenas se o erro tirar
+	               o controlador da saturacao superior *)
+				IF Erro_PI < 0.0 THEN
+
+					Integral_PI :=
+					Integral_Candidato;
+
+				END_IF;
+
+
+			ELSIF SaidaPI_SemLimite < 0.0 THEN
+
+				percentual := 0.0;
+
+	            (* permite integrar apenas se o erro tirar
+	               o controlador da saturacao inferior *)
+				IF Erro_PI > 0.0 THEN
+
+					Integral_PI :=
+					Integral_Candidato;
+
+				END_IF;
+
+
+			ELSE
+
+				percentual :=
+				SaidaPI_SemLimite;
+
+				Integral_PI :=
+				Integral_Candidato;
+
+			END_IF;
+
+
+			SaidaPI := percentual;
+
+
+		END_IF;
+
+
+
+		(* ========================================================= *)
+		(* 17. % -> COMANDO BRUTO DO INVERSOR                       *)
+		(* ========================================================= *)
+		(*
+		PI:
+		percentual = 0   -> potencia = 0 (limitado a 1000)
+		percentual = 100 -> potencia = 32000
+
+		Ensaio de degraus com Degrau_EscalaG2 = TRUE:
 		percentual = 0   -> potencia = 12000
-		percentual = 50  -> potencia = 15000
 		percentual = 100 -> potencia = 18000
 		*)
 
-		potencia := REAL_TO_INT(percentual * 320.0);
+		IF Degrau_Ativo AND Degrau_EscalaG2 THEN
+
+			potencia :=
+			12000
+			+ REAL_TO_INT(percentual * 60.0);
+
+			IF potencia > 18000 THEN
+				potencia := 18000;
+			END_IF;
+
+			IF potencia < 12000 THEN
+				potencia := 12000;
+			END_IF;
+
+		ELSE
+
+			potencia := REAL_TO_INT(percentual * 320.0);
 
 
-		(* Protecao adicional da faixa de controle *)
-		IF potencia > 32000 THEN
-			potencia := 32000;
+			(* Protecao adicional da faixa de controle *)
+			IF potencia > 32000 THEN
+				potencia := 32000;
+			END_IF;
+
+			IF potencia < 1000 THEN
+				potencia := 1000;
+			END_IF;
+
 		END_IF;
 
-		IF potencia < 1000 THEN
-			potencia := 1000;
+
+		(* ensaio de degraus terminou neste ciclo: bomba parada *)
+		IF NOT LIGA THEN
+			potencia := 0;
 		END_IF;
 
 
@@ -982,7 +1126,7 @@ PROGRAM _CYCLIC
 
 
 		(* ========================================================= *)
-		(* 17. AMOSTRAS PARA O PROXIMO CICLO                        *)
+		(* 18. AMOSTRAS PARA O PROXIMO CICLO                        *)
 		(* ========================================================= *)
 
 		y_prev := y;
@@ -993,7 +1137,7 @@ PROGRAM _CYCLIC
 
 
 		(* ========================================================= *)
-		(* 18. SISTEMA PARADO                                       *)
+		(* 19. SISTEMA PARADO                                       *)
 		(* ========================================================= *)
 
 		potencia := 0;
