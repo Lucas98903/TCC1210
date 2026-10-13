@@ -2,52 +2,67 @@
  * COPYRIGHT --
  ********************************************************************
  * PROGRAM: NewProgram
- * File: NewProgramCyclic_Proposto.st
- * Author: Lucas e João Gabriel / adaptacao MQR + PI (versao proposta)
+ * File: NewProgramCyclic_Proposto2.st
+ * Author: Lucas e João Gabriel / adaptacao MQR + PI (versao proposta 2)
  *
- * Versao proposta de NewProgramCyclic.st, para comparar em bancada.
- * Mesmas entradas e saidas: pressao, Start, Stop, SP, PI_Adaptativo
- * -> potencia. Usar junto com NewProgram_Proposto.var.
+ * Versao proposta para comparar em bancada com o codigo anterior
+ * (NewProgramCyclicOLD.txt). Mesmas entradas e saidas: pressao,
+ * Start, Stop, SP, PI_Adaptativo -> potencia.
+ * Usar junto com NewProgram_Proposto2.var.
  *
- * MUDANCAS EM RELACAO A NewProgramCyclic.st:
+ * A saida continua como no codigo anterior: potencia = 320*%
+ * (1000..32000). A proposta 1 tinha voltado para 12000 + 60*% e
+ * ficou ~3x mais lenta na bancada (ensaios de 12/10/2026).
  *
- *   [0] Saida na escala do ensaio do G2: potencia = 12000 + 60*%
- *       (0 % -> 12000, 100 % -> 18000). O G2 e a sintonia base
- *       foram obtidos nessa escala.
+ * MUDANCAS EM RELACAO AO CODIGO ANTERIOR:
  *
- *   [1] MQR a cada 1 s (Ts_Id), sobre a media de 10 amostras de y e u.
+ *   [1] MQR a cada 5 s (Ts_Id), sobre a media de 50 amostras de y e u.
  *       Com Ts = 0,1 s, Theta[0] fica em 0,998, tao perto de 1 que o
  *       ruido do nivel leva o tau estimado para ~5 s (real ~60 s).
+ *       Com 1 s ainda sobra vies: na simulacao com o modelo ajustado
+ *       aos traces de 12/10/2026, as ondas do nivel (3 a 7 s) e o
+ *       atraso da bomba (~1,3 s) puxam o tau estimado para ~metade.
+ *       Com 5 s, Theta[0] ~ 0,92 e o tau estimado fica a ~20 % do
+ *       tau local na mesma simulacao.
  *
  *   [2] Modelo com termo constante:
  *          y(k) = Theta[0]*y(k-1) + Theta[1]*u(k-1) + Theta[2]
  *       K = Theta[1]/(1 - Theta[0]) passa a ser o ganho local
  *       (incremental), e nao a razao nivel/comando.
  *
- *   [3] Lambda = 0,99 (memoria ~100 s) e limite do traco de P.
+ *   [3] Lambda = 0,95 (memoria de 20 amostras = 100 s) e limite do
+ *       traco de P.
  *
- *   [4] MQR congelado com o comando saturado (100 %) ou abaixo da
- *       zona morta da bomba (U_ZonaMorta): nesses trechos u nao age
- *       sobre y.
+ *   [4] MQR congelado fora da faixa util da bomba: u <= U_ZonaMorta
+ *       (41 %, a bomba nao vence a coluna) ou u >= U_MaxId (75 %,
+ *       acima disso a vazao quase nao aumenta). Nesses trechos o
+ *       modelo linear nao vale.
  *
- *   [5] Supervisor aplicado a K e tau: faixa fisica (K 0,5..6 cm/%,
- *       tau 20..200 s) e variacao relativa na janela de 10 s.
+ *   [5] Supervisor aplicado a K e tau: faixa fisica (K 2,5..30 cm/%,
+ *       tau 20..200 s) e variacao relativa na janela das ultimas 10
+ *       estimativas (50 s).
  *       K e tau aceitos passam por um filtro de 1a ordem.
  *
- *   [6] Sintonia: Wn = 2,0/tau (antes 1,2/tau), Kp 0,2..2,0,
- *       Ti 20..150 s, KpRate 0,02/s, TiRate 1 s/s e medicao filtrada
- *       (0,5 s) no PI.
+ *   [6] Sintonia: mesma regra de alocacao de polos, com
+ *       ZetaDesejado = 2,0 e WnFactor = 2 + raiz(3) = 3,732. Com esses
+ *       valores a regra da Ti = tau: o zero do PI cancela o polo da
+ *       planta e o outro polo fica em -13,93/tau (constante de tempo
+ *       de malha fechada ~ tau/13,9, ~4,3 s com tau = 60 s).
+ *       Kp 0,5..3,0, Ti 30..150 s, KpRate 0,02/s, TiRate 1 s/s e
+ *       medicao filtrada (0,5 s) no PI.
  *
- *   [7] Modelo inicial definido por K_Ini e Tau_Ini e reaplicado a
- *       cada START (Theta, P e PI base). Para partir de um modelo
- *       errado de proposito, basta mudar K_Ini/Tau_Ini no Watch
- *       antes do START.
+ *   [7] Modelo inicial definido por K_Ini e Tau_Ini (G2 convertido
+ *       para a escala 320*%) e reaplicado a cada START (Theta, P e PI
+ *       base). Para partir de um modelo errado de proposito, basta
+ *       mudar K_Ini/Tau_Ini no Watch antes do START.
  *
  *   [8] MQR atualizado somente ate T_Excitacao = 120 s (~2 tau) depois
  *       de cada mudanca de SP (ou START). Com o SP parado, so o ruido
- *       excita o MQR e Theta[0] deriva para baixo (tau estimado cai e
- *       Ti vai ao minimo). Uma nova mudanca de SP reabre a
- *       identificacao.
+ *       excita o MQR e Theta[0] deriva para baixo.
+ *
+ *   [9] Integral pre-carregada com U_Partida = 42 % no START, logo
+ *       acima da zona morta da bomba. Partindo de 0 %, a integral
+ *       levava ~90 s para chegar aos ~50 % que seguram o nivel.
  *
  * Mantidos iguais: calibracao do nivel, START/STOP, sequencia de
  * degraus no SP, rampa do SP (TaxaSP) e anti-windup do PI.
@@ -61,7 +76,7 @@ PROGRAM _INIT
 	(* ============================================================= *)
 
 	Ts := 0.1;			(* ciclo do PI (Cyclic#4) *)
-	Ts_Id := 1.0;		(* [1] amostragem do MQR = 10 ciclos *)
+	Ts_Id := 5.0;		(* [1] amostragem do MQR = 50 ciclos *)
 
 	pressao_soma := 0.0;
 	amostra_cont := 0;
@@ -80,32 +95,35 @@ PROGRAM _INIT
 	[7] Modelo inicial, aplicado na secao 2 do ciclico:
 
 	G2: tau = 59,789 s.
-	[2] Ganho LOCAL inicial: 1,65 cm/% (ganho incremental medido nas
-	transicoes 33 <-> 50 %), e nao 0,785 (razao nivel/comando).
+	[2] Ganho LOCAL inicial: 1,65 cm/% na escala do ensaio do G2
+	(12000 + 60*%), medido nas transicoes 33 <-> 50 %, e nao 0,785
+	(razao nivel/comando). Na escala 320*% da saida:
+	1,65 * 320/60 = 8,8 cm/%.
 
-	Com Ts_Id = 1 s:
-	Theta[0] = EXP(-Ts_Id/Tau_Ini)  = 0.983414
-	Theta[1] = K_Ini*(1 - Theta[0]) = 0.027367
+	Com Ts_Id = 5 s:
+	Theta[0] = EXP(-Ts_Id/Tau_Ini)  = 0.919763
+	Theta[1] = K_Ini*(1 - Theta[0]) = 0.706086
 	Theta[2] e calculado na 1a amostra, para que a predicao inicial
 	coincida com a medida.
 	*)
 
-	K_Ini := 1.65;			(* cm/% *)
+	K_Ini := 8.8;			(* cm/% na escala 320*% *)
 	Tau_Ini := 59.789;		(* s *)
 
 	(* [3] P inicial pequena em Theta[0] e Theta[1] (confia no modelo
 	inicial) e grande no termo constante (desconhecido) *)
-	P0_Diag[0] := 0.0001;
-	P0_Diag[1] := 0.001;
+	P0_Diag[0] := 0.0025;	(* 0,0001*5^2: mesma confianca da proposta 1 *)
+	P0_Diag[1] := 0.75;		(* 0,001*(320/60)^2*5^2 *)
 	P0_Diag[2] := 10.0;
 
-	TraceMax := 2.0 * (P0_Diag[0] + P0_Diag[1] + P0_Diag[2]);
+	(* [3] memoria efetiva 1/(1-Lambda) = 20 amostras = 100 s *)
+	Lambda := 0.95;
 
-	(* [3] memoria efetiva 1/(1-Lambda) = 100 amostras = 100 s *)
-	Lambda := 0.99;
-
-	(* [4] abaixo deste comando a bomba nao vence a zona morta *)
-	U_ZonaMorta := 15.0;	(* % *)
+	(* [4] faixa util da bomba para o MQR (traces de 12/10/2026):
+	abaixo de ~13100 contagens a bomba nao vence a coluna e acima de
+	~24000 a vazao quase nao aumenta *)
+	U_ZonaMorta := 41.0;	(* % = 13120 contagens *)
+	U_MaxId := 75.0;		(* % = 24000 contagens *)
 
 	(* [8] tempo de identificacao depois de cada mudanca de SP *)
 	T_Excitacao := 120.0;	(* s *)
@@ -142,20 +160,22 @@ PROGRAM _INIT
 
 	ContJanela := 0;
 
-	(* [5] variacao maxima admitida na janela de 10 s,
-	relativa a media da janela *)
+	(* [5] variacao maxima admitida na janela das ultimas 10
+	estimativas (50 s), relativa a media da janela *)
 	VarRelMaxK := 0.10;
 	VarRelMaxTau := 0.15;
 
-	(* [5] faixa fisica da planta, com folga
-	(ganho incremental medido: 0,9..2,3 cm/%; tau do G2: 60 s) *)
-	GanhoMinPl := 0.5;
-	GanhoMaxPl := 6.0;
+	(* [5] faixa fisica da planta, com folga (ganho local estimado
+	dos traces de 12/10/2026: ~8 cm/% em 22 cm e ~12 cm/% em 67 cm,
+	na escala 320*%; tau do G2: 60 s) *)
+	GanhoMinPl := 2.5;
+	GanhoMaxPl := 30.0;
 	TauMinPl := 20.0;
 	TauMaxPl := 200.0;
 
-	(* [5] filtro de 1a ordem dos parametros aceitos (~10 s) *)
-	AlfaParam := 0.1;
+	(* [5] filtro de 1a ordem dos parametros aceitos
+	(constante de tempo ~ Ts_Id/AlfaParam) *)
+	AlfaParam := 0.3;
 
 	ContEstavel := 0;
 	EstavelNecessario := 5;
@@ -175,16 +195,22 @@ PROGRAM _INIT
 	Kp = (2*zeta*WnFactor - 1)/K
 	Ti = (2*zeta*WnFactor - 1)*tau/WnFactor^2
 
-	Com K_Ini = 1,65 e Tau_Ini = 59,789: Kp = 1,5758 e Ti = 38,86 s.
+	[6] Com ZetaDesejado = 2 e WnFactor = 2 + raiz(3):
+	2*zeta*WnFactor - 1 = WnFactor^2 = 13,93, logo Ti = tau e
+	Kp = 13,93/K. Os polos de malha fechada ficam em -1/tau (cancelado
+	pelo zero do PI) e -13,93/tau.
+
+	Com K_Ini = 8,8 e Tau_Ini = 59,789: Kp = 1,5828 e Ti = 59,79 s.
+	(Codigo anterior: Kp = 1,4781 e Ti = 48,16 s.)
 	*)
 
-	ZetaDesejado := 0.90;
-	WnFactor := 2.00;		(* [6] antes 1.20; testar ate 2.5 *)
+	ZetaDesejado := 2.00;	(* [6] antes 0.90 *)
+	WnFactor := 3.732;		(* [6] antes 1.20 *)
 
-	KpMin := 0.20;			(* [6] antes 0.10 *)
-	KpMax := 2.00;			(* [6] antes 5.00 *)
+	KpMin := 0.50;			(* [6] antes 0.10 *)
+	KpMax := 3.00;			(* [6] antes 5.00 *)
 
-	TiMin := 20.0;			(* [6] antes 5.0 *)
+	TiMin := 30.0;			(* [6] antes 5.0 *)
 	TiMax := 150.0;			(* [6] antes 300.0 *)
 
 	(* [6] velocidade maxima de adaptacao *)
@@ -205,6 +231,9 @@ PROGRAM _INIT
 	(* [6] filtro de 1a ordem da medicao usada pelo PI *)
 	TfMedicao := 0.5;		(* s *)
 	y_f := 0.0;
+
+	(* [9] valor da integral no START: logo acima da zona morta *)
+	U_Partida := 42.0;		(* % = 13440 contagens *)
 
 	Erro_PI := 0.0;
 
@@ -358,7 +387,8 @@ PROGRAM _CYCLIC
 		(* [8] a partida tambem abre a identificacao *)
 		TempoSemSP := 0.0;
 
-		Integral_PI := 0.0;
+		(* [9] integral comeca logo acima da zona morta da bomba *)
+		Integral_PI := U_Partida;
 
 		percentual := 0.0;
 		u := 0.0;
@@ -415,6 +445,17 @@ PROGRAM _CYCLIC
 		IF Tau_Ini > TauMaxPl THEN
 			Tau_Ini := TauMaxPl;
 		END_IF;
+
+
+		(* [1] amostras por periodo do MQR e limite do traco de P
+		(recalculados a cada START: Ts_Id e P0 podem mudar no Watch) *)
+		NAmostrasId := REAL_TO_INT(Ts_Id / Ts);
+
+		IF NAmostrasId < 1 THEN
+			NAmostrasId := 1;
+		END_IF;
+
+		TraceMax := 2.0 * (P0_Diag[0] + P0_Diag[1] + P0_Diag[2]);
 
 
 		Theta0_Ini := EXP(-Ts_Id / Tau_Ini);
@@ -501,16 +542,16 @@ PROGRAM _CYCLIC
 		SomaU_Id := SomaU_Id + percentual;
 		ContId := ContId + 1;
 
-		(* [4] conta amostras em que u nao age sobre y *)
-		IF (percentual <= U_ZonaMorta) OR (percentual >= 100.0) THEN
+		(* [4] conta amostras fora da faixa util da bomba *)
+		IF (percentual <= U_ZonaMorta) OR (percentual >= U_MaxId) THEN
 			ContSatId := ContSatId + 1;
 		END_IF;
 
 
-		IF ContId >= 10 THEN
+		IF ContId >= NAmostrasId THEN
 
-			y_med := SomaY_Id / 10.0;
-			u_med := SomaU_Id / 10.0;
+			y_med := SomaY_Id / INT_TO_REAL(NAmostrasId);
+			u_med := SomaU_Id / INT_TO_REAL(NAmostrasId);
 
 			(* [4] e [8]: atualiza somente com u efetivo e dentro do
 			tempo de identificacao depois da ultima mudanca de SP *)
@@ -675,7 +716,7 @@ PROGRAM _CYCLIC
 
 
 				(* ===================================================== *)
-				(* 6. JANELA DAS ULTIMAS 10 ESTIMATIVAS = 10 s         *)
+				(* 6. JANELA DAS ULTIMAS 10 ESTIMATIVAS (50 s)         *)
 				(* ===================================================== *)
 				(*
 				So entram estimativas validas; uma invalida esvazia a
@@ -1073,24 +1114,22 @@ PROGRAM _CYCLIC
 
 
 		(* ========================================================= *)
-		(* 16. [0] % -> COMANDO BRUTO DO INVERSOR                   *)
+		(* 16. % -> COMANDO BRUTO DO INVERSOR (igual ao anterior)   *)
 		(* ========================================================= *)
 		(*
-		percentual = 0   -> potencia = 12000
-		percentual = 50  -> potencia = 15000
-		percentual = 100 -> potencia = 18000
+		percentual = 0   -> potencia = 1000 (minimo)
+		percentual = 50  -> potencia = 16000
+		percentual = 100 -> potencia = 32000
 		*)
 
-		potencia :=
-		12000
-		+ REAL_TO_INT(percentual * 60.0);
+		potencia := REAL_TO_INT(percentual * 320.0);
 
-		IF potencia > 18000 THEN
-			potencia := 18000;
+		IF potencia > 32000 THEN
+			potencia := 32000;
 		END_IF;
 
-		IF potencia < 12000 THEN
-			potencia := 12000;
+		IF potencia < 1000 THEN
+			potencia := 1000;
 		END_IF;
 
 

@@ -1,0 +1,197 @@
+(********************************************************************
+ * DECLARACAO LOCAL - NewProgram (VERSAO PROPOSTA)
+ *
+ * Usar junto com NewProgramCyclic_Proposto.st.
+ * Os numeros entre colchetes indicam a mudanca descrita no
+ * cabecalho do .st.
+ ********************************************************************)
+
+VAR
+
+    (* ================= SINAIS DA PLANTA ================= *)
+
+    pressao             : INT;      (* leitura bruta ADC *)
+    P_centimetro        : REAL;     (* pressao convertida em cm *)
+    P_psi               : REAL;
+
+    pressao_soma        : REAL;
+    amostra_cont        : INT;
+    pressao_media       : REAL;
+
+    y                   : REAL;     (* nivel atual em cm *)
+    y_f                 : REAL;     (* [6] nivel filtrado usado pelo PI *)
+    TfMedicao           : REAL;     (* [6] constante do filtro [s] *)
+
+    (* ================= COMANDO ========================= *)
+
+    percentual          : REAL;     (* comando 0..100 % *)
+    potencia            : INT;      (* comando bruto inversor *)
+
+    u                   : REAL;     (* comando aplicado, em % *)
+
+    (* ================= START / STOP ==================== *)
+
+    Start               : BOOL;     (* botao momentaneo NA *)
+    Stop                : BOOL;     (* botao NC: TRUE normal *)
+
+    StartPulso          : BOOL;
+    StopPulso           : BOOL;
+
+    LIGA                : BOOL;     (* latch interno *)
+
+    (* FALSE = PI simples / TRUE = PI adaptativo *)
+    PI_Adaptativo       : BOOL;
+
+
+    (* ================= MQR ============================= *)
+
+    Ts                  : REAL;     (* ciclo do PI = 0,1 s *)
+    Ts_Id               : REAL;     (* [1] amostragem do MQR = 1 s *)
+
+    SomaY_Id            : REAL;
+    SomaU_Id            : REAL;
+    ContId              : INT;
+    ContSatId           : INT;      (* [4] amostras com u sem efeito *)
+
+    y_med               : REAL;     (* [1] media de 1 s de y *)
+    u_med               : REAL;     (* [1] media de 1 s de u *)
+    y_prev              : REAL;
+    u_prev              : REAL;
+
+    IdLivre             : BOOL;     (* [4][8] TRUE = MQR atualiza *)
+    U_ZonaMorta         : REAL;     (* [4] % *)
+
+    SP_Anterior         : REAL;     (* [8] SP do ciclo anterior *)
+    TempoSemSP          : REAL;     (* [8] s desde a ultima mudanca de SP *)
+    T_Excitacao         : REAL;     (* [8] s de identificacao apos o SP *)
+
+    Theta               : ARRAY[0..2] OF REAL;  (* [2] +termo constante *)
+    P                   : ARRAY[0..2,0..2] OF REAL;
+    P0_Diag             : ARRAY[0..2] OF REAL;
+    Phi                 : ARRAY[0..2] OF REAL;
+    PPhi                : ARRAY[0..2] OF REAL;
+    K                   : ARRAY[0..2] OF REAL;  (* ganho do MQR *)
+
+    Lambda              : REAL;
+
+    Y_hat               : REAL;
+    Error               : REAL;     (* erro de predicao de 1 s *)
+    Den                 : REAL;
+
+    TraceP              : REAL;
+    TraceMax            : REAL;     (* [3] *)
+
+    PrimeiraAmostra     : BOOL;
+    OffsetIniciado      : BOOL;
+
+    i                   : INT;
+    j                   : INT;
+
+
+    (* ================= MODELO INICIAL [7] ============== *)
+
+    K_Ini               : REAL;     (* ganho inicial [cm/%] *)
+    Tau_Ini             : REAL;     (* constante de tempo inicial [s] *)
+    Theta0_Ini          : REAL;
+    Theta1_Ini          : REAL;
+    ReiniciaModelo      : BOOL;
+
+
+    (* ================= SUPERVISOR MQR [5] ============== *)
+
+    K_Inst              : REAL;     (* ganho local instantaneo *)
+    Tau_Inst            : REAL;     (* tau instantaneo *)
+
+    KJanela             : ARRAY[0..9] OF REAL;
+    TauJanela           : ARRAY[0..9] OF REAL;
+    ContJanela          : INT;
+
+    KMed                : REAL;
+    TauMed              : REAL;
+    KMinJ               : REAL;
+    KMaxJ               : REAL;
+    TauMinJ             : REAL;
+    TauMaxJ             : REAL;
+
+    VarRelMaxK          : REAL;
+    VarRelMaxTau        : REAL;
+
+    GanhoMinPl          : REAL;
+    GanhoMaxPl          : REAL;
+    TauMinPl            : REAL;
+    TauMaxPl            : REAL;
+
+    AlfaParam           : REAL;
+
+    ContEstavel         : INT;
+    EstavelNecessario   : INT;
+
+    ModeloEstavel       : BOOL;
+    ModeloValido        : BOOL;
+    ModeloAceito        : BOOL;
+
+
+    (* ================= MODELO DA PLANTA ================ *)
+
+    GanhoPlanta         : REAL;     (* K aceito e filtrado [cm/%] *)
+    TauPlanta           : REAL;     (* tau aceito e filtrado [s] *)
+
+
+    (* ================= SINTONIA PI ===================== *)
+
+    ZetaDesejado        : REAL;
+    WnFactor            : REAL;
+    Wn                  : REAL;
+
+    Kp_Base             : REAL;
+    Ti_Base             : REAL;
+
+    Kp_PI               : REAL;
+    Ti_PI               : REAL;
+
+    Kp_Alvo             : REAL;
+    Ti_Alvo             : REAL;
+
+    KpMin               : REAL;
+    KpMax               : REAL;
+
+    TiMin               : REAL;
+    TiMax               : REAL;
+
+    KpRate              : REAL;
+    TiRate              : REAL;
+
+
+    (* ================= SETPOINT / PI =================== *)
+
+    SP                  : REAL;     (* setpoint em cm *)
+    SP_Rampa            : REAL;
+
+    TaxaSP              : REAL;
+    DeltaMax            : REAL;
+
+    Erro_PI             : REAL;
+
+    Integral_PI         : REAL;
+    Integral_Candidato  : REAL;
+
+    SaidaPI             : REAL;
+    SaidaPI_SemLimite   : REAL;
+
+    AtualizacoesPI      : DINT;
+
+
+    (* ================= DEGRAUS NO SETPOINT ============= *)
+
+    EnsaioDegraus       : BOOL;     (* TRUE = START aplica degraus no SP *)
+
+    Degrau_Tempo        : REAL;     (* duracao de cada degrau [s] *)
+    Degrau_N            : INT;      (* numero de degraus (max 10) *)
+    Degrau_Valor        : ARRAY[0..9] OF REAL;  (* degraus de SP [cm] *)
+
+    Degrau_Etapa        : INT;      (* degrau atual: 0..Degrau_N-1 *)
+    Degrau_Cnt          : DINT;     (* ciclos no degrau atual *)
+    Degrau_Ativo        : BOOL;
+    Degrau_Concluido    : BOOL;
+
+END_VAR

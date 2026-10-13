@@ -1,7 +1,7 @@
 (********************************************************************
- * DECLARACAO LOCAL - NewProgram (VERSAO PROPOSTA)
+ * DECLARACAO LOCAL - NewProgram (VERSAO PROPOSTA 2)
  *
- * Usar junto com NewProgramCyclic_Proposto.st.
+ * Usar junto com NewProgramCyclic_Proposto2.st.
  * Os numeros entre colchetes indicam a mudanca descrita no
  * cabecalho do .st.
  ********************************************************************)
@@ -46,7 +46,8 @@ VAR
     (* ================= MQR ============================= *)
 
     Ts                  : REAL;     (* ciclo do PI = 0,1 s *)
-    Ts_Id               : REAL;     (* [1] amostragem do MQR = 1 s *)
+    Ts_Id               : REAL;     (* [1] amostragem do MQR = 5 s *)
+    NAmostrasId         : INT;      (* [1] ciclos por amostra do MQR *)
 
     SomaY_Id            : REAL;
     SomaU_Id            : REAL;
@@ -60,6 +61,7 @@ VAR
 
     IdLivre             : BOOL;     (* [4][8] TRUE = MQR atualiza *)
     U_ZonaMorta         : REAL;     (* [4] % *)
+    U_MaxId             : REAL;     (* [4] % *)
 
     SP_Anterior         : REAL;     (* [8] SP do ciclo anterior *)
     TempoSemSP          : REAL;     (* [8] s desde a ultima mudanca de SP *)
@@ -177,6 +179,8 @@ VAR
 
     SaidaPI             : REAL;
     SaidaPI_SemLimite   : REAL;
+
+    U_Partida           : REAL;     (* [9] integral no START [%] *)
 
     AtualizacoesPI      : DINT;
 
